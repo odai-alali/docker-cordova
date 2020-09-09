@@ -151,41 +151,6 @@ RUN \
   rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # -----------------------------------------------------------------------------
-# Create a non-root docker user to run this container
-# -----------------------------------------------------------------------------
-ARG USER
-ENV USER ${USER:-cordova}
-
-RUN \
-  echo "create user with appropriate rights, groups and permissions" && \
-  useradd --user-group --create-home --shell /bin/false ${USER} && \
-  echo "${USER}:${USER}" | chpasswd && \
-  adduser ${USER} sudo && \
-  adduser ${USER} root && \
-  chmod 775 / && \
-  usermod -a -G root ${USER} && \
-  \
-  echo "create the file and set permissions now with root user" && \
-  mkdir /app && chown ${USER}:${USER} /app && chmod 775 /app && \
-  mkdir /build && chown ${USER}:${USER} /build && chmod 775 /build && \
-  \
-  echo "create the file and set permissions now with root user" && \
-  touch /image.config && chown ${USER}:${USER} /image.config && chmod 775 /image.config && \
-  \
-  echo "this is necessary to install global npm modules" && \
-  chown ${USER}:${USER} /usr/local/bin
-  #&& chown ${USER}:${USER} ${ANDROID_HOME} -R
-
-# -----------------------------------------------------------------------------
-# Switch the user of this image only now, because previous commands need to be
-# run as root
-# -----------------------------------------------------------------------------
-USER ${USER}
-
-ENV NPM_CONFIG_PREFIX=/home/${USER}/.npm-global
-ENV PATH ${PATH}:"$(yarn global bin)"
-
-# -----------------------------------------------------------------------------
 # Install Global node modules
 # -----------------------------------------------------------------------------
 
@@ -196,24 +161,12 @@ RUN \
   if [ "${PACKAGE_MANAGER}" != "yarn" ]; then \
     npm install -g cordova@"${CORDOVA_VERSION}" cordova-check-plugins; \
   else \
-    yarn global add cordova@"${CORDOVA_VERSION}" cordova-check-plugins; \
+    yarn global add cordova@"${CORDOVA_VERSION}" cordova-check-plugins && \
+    export PATH="$(yarn global bin):$PATH"; \
   fi && \
   ${PACKAGE_MANAGER} cache clean --force
 
-# -----------------------------------------------------------------------------
-# Create the image.config file for the container to check the build
-# configuration of this container later on
-# -----------------------------------------------------------------------------
-RUN \
-echo "USER: ${USER}\n\
-JAVA_VERSION: ${JAVA_VERSION}\n\
-ANDROID_PLATFORMS_VERSION: ${ANDROID_PLATFORMS_VERSION}\n\
-ANDROID_BUILD_TOOLS_VERSION: ${ANDROID_BUILD_TOOLS_VERSION}\n\
-NODE_VERSION: ${NODE_VERSION}\n\
-PACKAGE_MANAGER: ${PACKAGE_MANAGER}\n\
-CORDOVA_VERSION: ${CORDOVA_VERSION}\n\
-" >> /image.config && \
-cat /image.config
+RUN echo 'n' | cordova
 
 # -----------------------------------------------------------------------------
 # WORKDIR is the generic /app folder. All volume mounts of the actual project
