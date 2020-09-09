@@ -14,8 +14,16 @@ jobs:
 
     steps:
     -
-      name: Checkout
-      uses: actions/checkout@v2
+      name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    -
+      name: Cache Docker layers
+      uses: actions/cache@v2
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
     -
       name: Login to DockerHub
       uses: docker/login-action@v1
@@ -23,9 +31,20 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     -
-      name: Build the Docker image
-      run: docker build . --file Dockerfile --tag odai/cordova:latest
-    - 
-      name: Push the Docker image
-      run: docker push odai/cordova
+      name: Build and push latest
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: odai/cordova:latest,odai/cordova:10
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache
+    -
+      name: Build and push 9
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        build-args: CORDOVA_VERSION=9.0.0,ANDROID_PLATFORMS_VERSION=28
+        tags: odai/cordova:9
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache
     
